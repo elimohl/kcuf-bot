@@ -1,4 +1,6 @@
 import logging
+import argparse
+from getpass import getpass
 
 from sleekxmpp import ClientXMPP
 from sleekxmpp.exceptions import IqError, IqTimeout
@@ -46,13 +48,26 @@ class EchoBot(ClientXMPP):
             msg.reply("Thanks for sending\n%(body)s" % msg).send()
 
 
-if __name__ == '__main__':
-    # Ideally use optparse or argparse to get JID,
-    # password, and log level.
+class PasswordAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string):
+        password = getpass()
+        setattr(namespace, self.dest, password)
 
-    logging.basicConfig(level=logging.DEBUG,
+
+if __name__ == '__main__':
+    argparser = argparse.ArgumentParser(
+        description="kcuf bot")
+    argparser.add_argument("jid", help="JID")
+    argparser.add_argument("password", action=PasswordAction, nargs=0, help="password")
+    argparser.add_argument("--loglevel", default="DEBUG",
+        choices=['critical', 'info', 'warning', 'notset', 'debug', 'error', 'warn'],
+        help="log level (default: debug)")
+    args = argparser.parse_args()
+    level = args.loglevel.upper()
+
+    logging.basicConfig(level=level,
                         format='%(levelname)-8s %(message)s')
 
-    xmpp = EchoBot('jid', 'password')
+    xmpp = EchoBot(args.jid, args.password)
     xmpp.connect()
     xmpp.process(block=True)
