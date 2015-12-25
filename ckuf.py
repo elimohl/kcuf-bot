@@ -1,6 +1,7 @@
 import logging
 import argparse
 from getpass import getpass
+from datetime import datetime
 import os
 
 from sleekxmpp import ClientXMPP
@@ -56,9 +57,10 @@ class EchoBot(ClientXMPP):
             else:
                 nick = msg['from'].user
         with open(log_filename, 'a') as log_file:
+            log_file.write(datetime.now().strftime('(%d.%m.%Y %X) '))
             if nick != '':
-                log_file.write(nick + ': ')
-            log_file.write(msg['body'] + '\n\n')
+                log_file.write('{}: '.format(nick))
+            log_file.write('{}\n\n'.format(msg['body']))
 
 
 class PasswordAction(argparse.Action):
