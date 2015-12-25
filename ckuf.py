@@ -7,16 +7,6 @@ from sleekxmpp import ClientXMPP
 from sleekxmpp.exceptions import IqError, IqTimeout
 
 
-def save_msg(msg, log_dir):
-    log_filename = os.path.join(log_dir, msg['from'].bare)
-    if msg['type'] == 'groupchat':
-        nick = msg['mucnick']
-    else:
-        nick = msg['from'].user
-    with open(log_filename, 'a') as log_file:
-        log_file.write('{}: {}\n\n'.format(nick, msg['body']))
-
-
 class EchoBot(ClientXMPP):
 
     def __init__(self, jid, password, log_dir, room, nick):
@@ -44,15 +34,31 @@ class EchoBot(ClientXMPP):
 
     def message(self, msg):
         if msg['type'] in ('chat', 'normal'):
-            save_msg(msg, self.log_dir)
+            self.save_msg(msg)
             msg.reply("Thanks for sending\n%(body)s" % msg).send()
+            self.save_msg(msg, mine=True)
 
     def muc_message(self, msg):
-        save_msg(msg, self.log_dir)
+        self.save_msg(msg)
         if msg['mucnick'] != self.nick and self.nick in msg['body']:
             self.send_message(mto=msg['from'].bare,
                               mbody="I heard that, %s." % msg['mucnick'],
                               mtype='groupchat')
+
+    def save_msg(self, msg, mine=False):
+        if mine:
+            log_filename = os.path.join(self.log_dir, msg['to'].bare)
+            nick = self.boundjid.user
+        else:
+            log_filename = os.path.join(self.log_dir, msg['from'].bare)
+            if msg['type'] == 'groupchat':
+                nick = msg['mucnick']
+            else:
+                nick = msg['from'].user
+        with open(log_filename, 'a') as log_file:
+            if nick != '':
+                log_file.write(nick + ': ')
+            log_file.write(msg['body'] + '\n\n')
 
 
 class PasswordAction(argparse.Action):
@@ -66,7 +72,7 @@ if __name__ == '__main__':
         description="kcuf bot")
     argparser.add_argument("jid", help="JID")
     argparser.add_argument("password", action=PasswordAction, nargs=0, help="password")
-    argparser.add_argument("--path", default="~/kcuf-bot-logs", help="path/to/logs")
+    argparser.add_argument("--path", default="logs", help="path/to/logs")
     argparser.add_argument("--room", default=None, help="room to join")
     argparser.add_argument("--nick", default="kcuf", help="nick")
     argparser.add_argument(
