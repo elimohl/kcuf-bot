@@ -10,11 +10,12 @@ from sleekxmpp.exceptions import IqError, IqTimeout
 
 class EchoBot(ClientXMPP):
 
-    def __init__(self, jid, password, log_dir, room, nick):
+    def __init__(self, jid, password, log_dir, room, nick, my_nicks):
         super().__init__(jid, password)
         self.log_dir = log_dir
         self.room = room
         self.nick = nick
+        self.my_nicks = my_nicks
         self.add_event_handler("session_start", self.session_start)
         self.add_event_handler("message", self.message)
         self.add_event_handler("groupchat_message", self.muc_message)
@@ -36,12 +37,22 @@ class EchoBot(ClientXMPP):
     def message(self, msg):
         if msg['type'] in ('chat', 'normal'):
             self.save_msg(msg)
-            msg.reply("Thanks for sending\n%(body)s" % msg).send()
-            self.save_msg(msg, mine=True)
+            # msg.reply("Thanks for sending\n%(body)s" % msg).send()
+            # self.save_msg(msg, mine=True)
+
+    def should_reply(self, msg):
+        if msg['mucnick'] == self.nick:
+            return False
+        if self.nick in msg['body']:
+            return True
+        for nick in self.my_nicks:
+            if nick in msg['body']:
+                return True
+        return False
 
     def muc_message(self, msg):
         self.save_msg(msg)
-        if msg['mucnick'] != self.nick and self.nick in msg['body']:
+        if self.should_reply(msg):
             self.send_message(mto=msg['from'].bare,
                               mbody="I heard that, %s." % msg['mucnick'],
                               mtype='groupchat')
@@ -87,8 +98,14 @@ if __name__ == '__main__':
                         format='%(levelname)-8s %(message)s')
     log_dir = os.path.join(os.path.expanduser(args.path), args.jid)
     os.makedirs(log_dir, exist_ok=True)
+    try:
+        with open('my_nicks') as my_nicks_file:
+            my_nicks = my_nicks_file.read().splitlines()
+    except OSError:
+        my_nicks = []
 
-    xmpp = EchoBot(args.jid, args.password, log_dir, args.room, args.nick)
+    logging.info("Bot's nicks: {}".format(my_nicks))
+    xmpp = EchoBot(args.jid, args.password, log_dir, args.room, args.nick, my_nicks)
     xmpp.register_plugin('xep_0045')
     if xmpp.connect():
         xmpp.process(block=True)
