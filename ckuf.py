@@ -3,10 +3,47 @@ import logging
 import argparse
 from getpass import getpass
 from datetime import datetime
+from random import getrandbits
 import os
+
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, Integer, Text, Column, Boolean
+from sqlalchemy.sql.expression import func
 
 from sleekxmpp import ClientXMPP
 from sleekxmpp.exceptions import IqError, IqTimeout
+
+
+def generate_reply(msg):
+    return ">{}\nNo.".format(msg)
+
+
+def get_ready_reply():
+    not_sent = session.query(Entry).filter(
+        Entry.sent == False).order_by(  # NOQA
+        func.random()).first()
+
+    not_sent.sent = True
+    session.commit()
+    return not_sent.text
+
+
+db = declarative_base()
+
+
+class Entry(db):
+    __tablename__ = 'entries'
+
+    rowid = Column(Integer, primary_key=True)
+    text = Column(Text)
+    sent = Column(Boolean)
+
+    def __init__(self, text):
+        self.text = text
+
+    def __repr__(self):
+        return 'id={} "{}" sent={}'.format(self.rowid, self.text, self.sent)
 
 
 class EchoBot(ClientXMPP):
@@ -51,11 +88,17 @@ class EchoBot(ClientXMPP):
                 return True
         return False
 
+    def reply(self, msg):
+        if getrandbits(1):
+            return generate_reply(msg)
+        else:
+            return get_ready_reply()
+
     def muc_message(self, msg):
         self.save_msg(msg)
         if self.should_reply(msg):
             self.send_message(mto=msg['from'].bare,
-                              mbody="I heard that, %s." % msg['mucnick'],
+                              mbody=self.reply(msg['body']),
                               mtype='groupchat')
 
     def save_msg(self, msg, mine=False):
@@ -104,6 +147,9 @@ if __name__ == '__main__':
             my_nicks = my_nicks_file.read().splitlines()
     except OSError:
         my_nicks = []
+    engine = create_engine('sqlite:///ready_replies.db')
+    Session = sessionmaker(bind=engine)
+    session = Session()
 
     logging.info("Bot's nicks: {}".format(my_nicks))
     xmpp = EchoBot(args.jid, args.password, log_dir, args.room, args.nick, my_nicks)
