@@ -91,4 +91,4 @@ if __name__ == '__main__':
         model.fit(X, y, batch_size=128, nb_epoch=1)
 
         start_index = random.randint(0, len(text) - maxlen - 1)
-        model.save_weights('model_weights.h5')
+        model.save_weights('model_weights.h5', overwrite=True)

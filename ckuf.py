@@ -14,7 +14,7 @@ from sqlalchemy.sql.expression import func
 from sleekxmpp import ClientXMPP
 from sleekxmpp.exceptions import IqError, IqTimeout
 
-from ckuf.generator import generate_reply
+from generator import generate_reply
 
 
 def get_ready_reply():
