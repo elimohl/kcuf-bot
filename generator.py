@@ -28,6 +28,8 @@ def sample(a, temperature=1.0):
 
 
 def generate_reply(msg, diversity=1.):
+    if any([char not in chars for char in msg]):
+        return ''
     model = model_from_json(open('model_architecture.json').read())
     model.load_weights('model_weights.h5')
 

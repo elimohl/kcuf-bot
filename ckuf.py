@@ -22,6 +22,8 @@ def get_ready_reply():
         Entry.sent == False).order_by(  # NOQA
         func.random()).first()
 
+    if not_sent is None:
+        return ''
     not_sent.sent = True
     session.commit()
     return not_sent.text
@@ -87,9 +89,10 @@ class EchoBot(ClientXMPP):
         return False
 
     def reply(self, msg):
+        ans = ''
         if getrandbits(1):
-            return generate_reply(msg)
-        else:
+            ans = generate_reply(msg)
+        if not ans:
             return get_ready_reply()
 
     def muc_message(self, msg):
