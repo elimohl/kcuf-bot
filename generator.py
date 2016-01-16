@@ -3,9 +3,10 @@
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
-from keras.models import model_from_json
 import numpy as np
 import random
+
+import logging
 
 
 text = open("corpus.txt").read().lower()
@@ -28,16 +29,14 @@ def sample(a, temperature=1.0):
 
 
 def generate_reply(msg, diversity=1.):
+    logging.info("Generating message")
     if any([char not in chars for char in msg]):
+        logging.error("Fail to generate message with seed {}".format(msg))
         return ''
-    model = model_from_json(open('model_architecture.json').read())
-    model.load_weights('model_weights.h5')
 
-    print('----- diversity:', diversity)
+    logging.info('Diversity: {}'.format(diversity))
 
     sentence = msg
-    print('----- Generating with seed: "' + msg + '"')
-
     ans = ''
     while (ans[-2:] != '\n\n' and len(ans) < 1000):
         x = np.zeros((1, maxlen, len(chars)))

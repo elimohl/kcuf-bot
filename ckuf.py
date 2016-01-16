@@ -15,21 +15,27 @@ from sleekxmpp import ClientXMPP
 from sleekxmpp.exceptions import IqError, IqTimeout
 
 from generator import generate_reply
+from keras.models import model_from_json
+
+
+model = model_from_json(open('model_architecture.json').read())
+model.load_weights('model_weights.h5')
+db = declarative_base()
 
 
 def get_ready_reply():
+    logging.info("Retrieving reply from db")
     not_sent = session.query(Entry).filter(
         Entry.sent == False).order_by(  # NOQA
         func.random()).first()
 
     if not_sent is None:
+        logging.error(
+            "There is no entry in db that has not been sent already")
         return ''
     not_sent.sent = True
     session.commit()
     return not_sent.text
-
-
-db = declarative_base()
 
 
 class Entry(db):
