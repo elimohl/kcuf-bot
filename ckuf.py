@@ -97,9 +97,10 @@ class EchoBot(ClientXMPP):
     def reply(self, msg):
         ans = ''
         if getrandbits(1):
-            ans = generate_reply(msg)
+            ans = generate_reply(model, msg)
         if not ans:
-            return get_ready_reply()
+            ans = get_ready_reply()
+        return ans
 
     def muc_message(self, msg):
         self.save_msg(msg)

@@ -10,10 +10,7 @@ import logging
 
 
 text = open("corpus.txt").read().lower()
-print('corpus length:', len(text))
-
 chars = set(text)
-print('total chars:', len(chars))
 char_indices = dict((c, i) for i, c in enumerate(chars))
 indices_char = dict((i, c) for i, c in enumerate(chars))
 
@@ -28,7 +25,7 @@ def sample(a, temperature=1.0):
     return np.argmax(np.random.multinomial(1, a, 1))
 
 
-def generate_reply(msg, diversity=1.):
+def generate_reply(model, msg, diversity=1.):
     logging.info("Generating message")
     if any([char not in chars for char in msg]):
         logging.error("Fail to generate message with seed {}".format(msg))
@@ -38,7 +35,7 @@ def generate_reply(msg, diversity=1.):
 
     sentence = msg
     ans = ''
-    while (ans[-2:] != '\n\n' and len(ans) < 1000):
+    while (ans[-2:] != '\n\n' and len(ans) < 500):
         x = np.zeros((1, maxlen, len(chars)))
         for t, char in enumerate(sentence):
             x[0, t, char_indices[char]] = 1.
@@ -50,10 +47,13 @@ def generate_reply(msg, diversity=1.):
         ans += next_char
         sentence = sentence[1:] + next_char
 
+    logging.debug('Generated reply: {}'.format(ans))
     return ans
 
 
 if __name__ == '__main__':
+    print('corpus length:', len(text))
+    print('total chars:', len(chars))
     sentences = []
     next_chars = []
     # cut the text in semi-redundant sequences of maxlen characters
