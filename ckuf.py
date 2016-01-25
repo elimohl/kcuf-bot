@@ -136,13 +136,15 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser(
         description="kcuf bot")
     argparser.add_argument("jid", help="JID")
-    argparser.add_argument("password", action=PasswordAction, nargs=0, help="password")
+    argparser.add_argument("password", action=PasswordAction,
+                           nargs=0, help="password")
     argparser.add_argument("--path", default="logs", help="path/to/logs")
     argparser.add_argument("--room", default=None, help="room to join")
     argparser.add_argument("--nick", default="kcuf", help="nick")
     argparser.add_argument(
         "--loglevel", default="DEBUG",
-        choices=['critical', 'info', 'warning', 'notset', 'debug', 'error', 'warn'],
+        choices=['critical', 'info', 'warning',
+                 'notset', 'debug', 'error', 'warn'],
         help="log level (default: debug)")
     args = argparser.parse_args()
     level = args.loglevel.upper()
@@ -160,7 +162,8 @@ if __name__ == '__main__':
     session = Session()
 
     logging.info("Bot's nicks: {}".format(my_nicks))
-    xmpp = EchoBot(args.jid, args.password, log_dir, args.room, args.nick, my_nicks)
+    xmpp = EchoBot(args.jid, args.password, log_dir,
+                   args.room, args.nick, my_nicks)
     xmpp.register_plugin('xep_0045')
     if xmpp.connect():
         xmpp.process(block=True)
