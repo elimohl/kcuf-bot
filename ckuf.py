@@ -2,9 +2,9 @@
 import logging
 import argparse
 from getpass import getpass
-from datetime import datetime
-from random import getrandbits
+from datetime import datetime, timedelta
 import os
+import re
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -15,6 +15,7 @@ from sleekxmpp import ClientXMPP
 from sleekxmpp.exceptions import IqError, IqTimeout
 
 from generator import generate_reply
+from config import you_words, my_nicks  # , reply_nicks
 from keras.models import model_from_json
 
 
@@ -59,7 +60,10 @@ class EchoBot(ClientXMPP):
         self.log_dir = log_dir
         self.room = room
         self.nick = nick
-        self.my_nicks = my_nicks
+        self.my_nicks = set(my_nicks + [nick, self.username])
+        self.silent_since = datetime.now()
+        self.mine = False
+        self.after_mine = False
         self.add_event_handler("session_start", self.session_start)
         self.add_event_handler("message", self.message)
         self.add_event_handler("groupchat_message", self.muc_message)
@@ -84,30 +88,48 @@ class EchoBot(ClientXMPP):
             # msg.reply("Thanks for sending\n%(body)s" % msg).send()
             # self.save_msg(msg, mine=True)
 
-    def should_reply(self, msg):
+    def is_to_me(self, msg):
         if msg['mucnick'] == self.nick:
             return False
-        if self.nick in msg['body']:
-            return True
         for nick in self.my_nicks:
             if nick in msg['body']:
                 return True
+        '''
+        if msg['mucnick'].lower() not in reply_nicks:
+            return False
+        '''
+        if not self.after_mine:
+            return False
+        words = msg['body'].lower().split()
+        for yword in you_words:
+            for word in words:
+                if re.match(word, yword + '$'):
+                    return True
         return False
 
     def reply(self, msg):
-        ans = ''
-        if getrandbits(1):
+        if self.is_to_me(msg):
             ans = generate_reply(model, msg)
-        if not ans:
-            ans = get_ready_reply()
-        return ans
+            if not ans:
+                ans = get_ready_reply()
+            return ans
+
+        if datetime.now() - self.silent_since > timedelta(hours=5) and\
+                12 < datetime.now().hour < 3:
+            return get_ready_reply()
+        else:
+            return None
 
     def muc_message(self, msg):
+        self.after_mine = self.mine
+        self.mine = msg['mucnick'] == self.nick
         self.save_msg(msg)
-        if self.should_reply(msg):
+        reply = self.reply(msg)
+        if reply:
             self.send_message(mto=msg['from'].bare,
-                              mbody=self.reply(msg['body']),
+                              mbody=reply,
                               mtype='groupchat')
+        self.silent_since = datetime.now()
 
     def save_msg(self, msg, mine=False):
         if mine:
@@ -152,11 +174,6 @@ if __name__ == '__main__':
                         format='%(levelname)-8s %(message)s')
     log_dir = os.path.join(os.path.expanduser(args.path), args.jid)
     os.makedirs(log_dir, exist_ok=True)
-    try:
-        with open('my_nicks') as my_nicks_file:
-            my_nicks = my_nicks_file.read().splitlines()
-    except OSError:
-        my_nicks = []
     engine = create_engine('sqlite:///ready_replies.db')
     Session = sessionmaker(bind=engine)
     session = Session()
